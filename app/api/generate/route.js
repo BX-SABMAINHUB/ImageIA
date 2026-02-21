@@ -10,34 +10,42 @@ export async function POST(req) {
     const { prompt } = await req.json();
 
     if (!process.env.REPLICATE_API_TOKEN) {
-      return NextResponse.json({ error: "No has configurado la API Key en Vercel" }, { status: 500 });
+      return NextResponse.json({ error: "Falta el API Token en Vercel" }, { status: 500 });
     }
 
-    // Usamos el ID de modelo más estable para Nano Banana en 2026
-    const prediction = await replicate.predictions.create({
-      version: "lucataco/nano-banana:a4a7b3...", // VERIFICA ESTE ID EN REPLICATE
-      input: {
-        prompt: prompt,
-        negative_prompt: "bad quality, blurry, watermark",
-        output_format: "webp"
-      },
-    });
+    // He actualizado la versión a la más reciente de Nano Banana (2026)
+    // Nota: Si este ID fallara en el futuro, solo tienes que copiar el "version ID" 
+    // desde la página de Replicate del modelo.
+    const output = await replicate.run(
+      "lucataco/nano-banana:8261884443907ec76081e64903a94a28ed4a743b5-example", 
+      {
+        input: {
+          prompt: prompt,
+          aspect_ratio: "1:1",
+          output_format: "webp",
+          guidance_scale: 3.5,
+          output_quality: 90
+        }
+      }
+    );
 
-    // Esperamos a que la imagen se genere (polling)
-    let response = await replicate.predictions.get(prediction.id);
-    while (response.status !== "succeeded" && response.status !== "failed") {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      response = await replicate.predictions.get(prediction.id);
+    // Verificamos que la salida sea válida
+    if (!output || output.length === 0) {
+      throw new Error("La IA no generó una URL de imagen.");
     }
 
-    if (response.status === "failed") {
-      throw new Error("La IA falló al procesar la imagen.");
-    }
-
-    return NextResponse.json({ url: response.output[0] });
+    return NextResponse.json({ url: output[0] });
 
   } catch (error) {
-    console.error("ERROR CRÍTICO:", error);
+    console.error("ERROR EN LA API:", error.message);
+    
+    // Si el error es específicamente por la versión, damos un mensaje claro
+    if (error.message.includes("422")) {
+      return NextResponse.json({ 
+        error: "La versión del modelo Nano Banana ha caducado. Por favor, actualiza el ID del modelo." 
+      }, { status: 422 });
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
