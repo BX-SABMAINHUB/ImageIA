@@ -1,27 +1,36 @@
 import { NextResponse } from 'next/server';
+import Replicate from "replicate";
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
 
 export async function POST(req) {
-  const { prompt } = await req.json();
-
-  // Aquí llamamos al servicio que aloja Nano Banana (ej. Replicate o similar)
-  // Por ahora, configuramos el puente:
   try {
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        version: "nano-banana-model-id", // Aquí iría el ID real del modelo
-        input: { prompt: prompt }
-      }),
-    });
+    const { prompt } = await req.json();
 
-    const data = await response.json();
-    // Nota: Dependiendo de la API, puede que necesites esperar a que termine
-    return NextResponse.json({ url: data.output[0] });
+    if (!prompt) {
+      return NextResponse.json({ error: "El prompt es obligatorio" }, { status: 400 });
+    }
+
+    // Llamada al modelo Nano Banana
+    // Nota: El ID "lucataco/nano-banana" es el estándar en Replicate para este modelo
+    const output = await replicate.run(
+      "lucataco/nano-banana:a4a7b39a3ad8278f3523f66c98687a41e974f07a123602d38586b245a403d6d0",
+      {
+        input: {
+          prompt: prompt,
+          aspect_ratio: "1:1",
+          output_format: "webp",
+          output_quality: 90,
+        }
+      }
+    );
+
+    // Replicate devuelve un array, tomamos el primer elemento (la imagen)
+    return NextResponse.json({ url: output[0] });
   } catch (error) {
-    return NextResponse.json({ error: "Error de conexión" }, { status: 500 });
+    console.error("Error en el servidor:", error);
+    return NextResponse.json({ error: "Error al generar la imagen. Revisa tu API Token." }, { status: 500 });
   }
 }
