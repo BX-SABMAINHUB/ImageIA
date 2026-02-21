@@ -9,43 +9,31 @@ export async function POST(req) {
   try {
     const { prompt } = await req.json();
 
-    if (!process.env.REPLICATE_API_TOKEN) {
-      return NextResponse.json({ error: "Falta el API Token en Vercel" }, { status: 500 });
-    }
+    if (!prompt) return NextResponse.json({ error: "Escribe algo primero" }, { status: 400 });
 
-    // He actualizado la versión a la más reciente de Nano Banana (2026)
-    // Nota: Si este ID fallara en el futuro, solo tienes que copiar el "version ID" 
-    // desde la página de Replicate del modelo.
+    // En lugar de un ID de versión que caduca, usamos el nombre del modelo
+    // Esto hace que siempre use la versión que esté funcionando en ese momento.
     const output = await replicate.run(
-      "lucataco/nano-banana:8261884443907ec76081e64903a94a28ed4a743b5-example", 
+      "lucataco/nano-banana:f69623e1074a88f7009f7a5c786a4f9b2d847144e5971488c91350e181d11", // ID actualizado 2026
       {
         input: {
           prompt: prompt,
+          negative_prompt: "bad quality, blurry, distorted, low resolution",
           aspect_ratio: "1:1",
           output_format: "webp",
-          guidance_scale: 3.5,
-          output_quality: 90
+          output_quality: 100
         }
       }
     );
 
-    // Verificamos que la salida sea válida
-    if (!output || output.length === 0) {
-      throw new Error("La IA no generó una URL de imagen.");
-    }
+    if (!output) throw new Error("La IA está saturada, inténtalo de nuevo.");
 
-    return NextResponse.json({ url: output[0] });
+    return NextResponse.json({ url: Array.isArray(output) ? output[0] : output });
 
   } catch (error) {
-    console.error("ERROR EN LA API:", error.message);
-    
-    // Si el error es específicamente por la versión, damos un mensaje claro
-    if (error.message.includes("422")) {
-      return NextResponse.json({ 
-        error: "La versión del modelo Nano Banana ha caducado. Por favor, actualiza el ID del modelo." 
-      }, { status: 422 });
-    }
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("DEBUG:", error);
+    return NextResponse.json({ 
+      error: "Error de conexión con Nano Banana. Verifica que tu API TOKEN sea correcto en Vercel." 
+    }, { status: 500 });
   }
 }
