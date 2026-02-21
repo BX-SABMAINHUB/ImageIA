@@ -2,51 +2,42 @@ import { NextResponse } from 'next/server';
 import Replicate from "replicate";
 
 const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
+  auth: process.env.REPLICATE_API_TOKEN, // Usará el r8_... que pongas en Vercel
 });
 
 export async function POST(req) {
   try {
     const { prompt } = await req.json();
 
-    if (!prompt) return NextResponse.json({ error: "Escribe algo primero" }, { status: 400 });
+    if (!prompt) {
+      return NextResponse.json({ error: "Escribe una descripción" }, { status: 400 });
+    }
 
-    // Cambiamos a Stable Diffusion XL: Es el más estable y profesional del mundo
-    // Este ID es universal y no caduca como el de Nano Banana
+    // Usamos FLUX.1 [schnell] - El modelo más efectivo de 2026
     const output = await replicate.run(
-      "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de71f50d33c51205730ea939474d202",
+      "black-forest-labs/flux-schnell",
       {
         input: {
           prompt: prompt,
-          negative_prompt: "low quality, bad anatomy, blurry, low resolution, text, watermark",
-          width: 1024,
-          height: 1024,
-          num_inference_steps: 50,
-          guidance_scale: 7.5,
-          scheduler: "K_EULER",
+          num_inference_steps: 4,
+          aspect_ratio: "1:1",
+          output_format: "webp",
+          output_quality: 90
         }
       }
     );
 
     if (!output || output.length === 0) {
-      throw new Error("El servidor de IA está ocupado. Intenta de nuevo en unos segundos.");
+      throw new Error("La IA no ha podido generar la imagen.");
     }
 
-    // SDXL devuelve un array, cogemos la primera posición
+    // Devolvemos la URL (FLUX suele devolver un array de una posición)
     return NextResponse.json({ url: output[0] });
 
   } catch (error) {
-    console.error("ERROR REPLICATE:", error);
-    
-    // Si el error es de pago o créditos
-    if (error.message.includes("free tier") || error.message.includes("credit")) {
-      return NextResponse.json({ 
-        error: "Se han agotado los créditos gratuitos en Replicate. Necesitas añadir un método de pago." 
-      }, { status: 402 });
-    }
-
+    console.error("ERROR EN LA GENERACIÓN:", error.message);
     return NextResponse.json({ 
-      error: "Error de conexión: " + error.message 
+      error: "Error: " + error.message 
     }, { status: 500 });
   }
 }
