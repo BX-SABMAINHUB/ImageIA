@@ -1,16 +1,18 @@
 "use client";
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Download, Zap, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Sparkles, Download, Zap, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const generateImage = async () => {
     if (!prompt || loading) return;
     setLoading(true);
+    setError(null);
     setImage(null);
     
     try {
@@ -19,40 +21,45 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
+      
       const data = await response.json();
-      if (data.url) setImage(data.url);
+
+      if (!response.ok) throw new Error(data.error || "Error desconocido");
+      if (data.url) {
+        setImage(data.url);
+      } else {
+        throw new Error("La IA no devolvió ninguna imagen.");
+      }
     } catch (err) {
-      alert("Algo salió mal. Revisa la consola.");
+      console.error("Error visual:", err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden">
-      {/* Efectos de luces de fondo */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[120px]" />
+    <div className="bg-mesh min-h-screen flex flex-col items-center justify-start p-6 md:p-20">
+      {/* Decoración superior */}
+      <motion.div initial={{ y: -50 }} animate={{ y: 0 }} className="mb-12 text-center">
+        <span className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 px-6 py-2 rounded-full text-sm font-bold tracking-widest uppercase mb-6 inline-block">
+          Engine: Nano Banana v2.5
+        </span>
+        <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-4 italic">
+          NANO <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-600">BANANA</span>
+        </h1>
+        <p className="text-gray-400 text-xl md:text-2xl max-w-2xl mx-auto font-light">
+          La IA de generación de imágenes más rápida del mundo. Si puedes pensarlo, puedes verlo.
+        </p>
+      </motion.div>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="z-10 w-full max-w-3xl"
-      >
-        <header className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-yellow-500 text-sm font-medium mb-4">
-            <Zap size={14} /> Powered by Nano Banana
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tighter">
-            IMAGINA <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">CUALQUIER COSA</span>
-          </h1>
-        </header>
-
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-2 rounded-3xl shadow-2xl flex flex-col md:flex-row gap-2">
+      {/* Contenedor Principal */}
+      <div className="w-full max-w-6xl space-y-10">
+        <div className="glass p-4 rounded-[40px] flex flex-col md:flex-row gap-4 items-center">
           <input
             type="text"
-            placeholder="Describe una ciudad cyberpunk bañada por la lluvia..."
-            className="flex-1 bg-transparent px-6 py-4 outline-none text-lg border-none focus:ring-0"
+            placeholder="Ej: Un samurái robótico en un bosque de cerezos de cristal, estilo cinemático..."
+            className="w-full bg-transparent px-8 py-6 text-2xl outline-none border-none placeholder:text-gray-600 font-medium"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && generateImage()}
@@ -60,46 +67,54 @@ export default function Home() {
           <button
             onClick={generateImage}
             disabled={loading}
-            className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-8 py-4 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full md:w-auto whitespace-nowrap bg-yellow-400 hover:bg-yellow-300 text-black text-2xl font-black px-12 py-6 rounded-[30px] flex items-center justify-center gap-3 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 shadow-[0_0_30px_rgba(251,191,36,0.3)]"
           >
-            {loading ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
-            {loading ? "Calculando..." : "Generar"}
+            {loading ? <Loader2 className="animate-spin" size={32} /> : <Sparkles size={32} />}
+            {loading ? "PROCESANDO..." : "GENERAR"}
           </button>
         </div>
 
-        <div className="mt-8 relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-[2rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-          <div className="relative aspect-square md:aspect-video w-full bg-black/40 border border-white/10 rounded-[2rem] overflow-hidden flex items-center justify-center shadow-inner">
-            <AnimatePresence mode='wait'>
-              {image ? (
-                <motion.div 
-                  key="image"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="relative w-full h-full"
-                >
-                  <img src={image} alt="Generada" className="w-full h-full object-cover" />
-                  <a 
-                    href={image} 
-                    download 
-                    className="absolute bottom-4 right-4 p-4 bg-black/60 backdrop-blur-md rounded-full hover:bg-black/80 transition-all border border-white/20"
-                  >
-                    <Download size={24} />
+        {/* Mensaje de Error */}
+        <AnimatePresence>
+          {error && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-red-500/20 border border-red-500/50 p-6 rounded-2xl flex items-center gap-4 text-red-200">
+              <AlertCircle size={24} />
+              <p className="font-bold">ERROR: {error}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Área de la Imagen (GIGANTE) */}
+        <div className="relative group">
+          <div className="absolute -inset-2 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-[50px] blur-2xl opacity-10 group-hover:opacity-25 transition duration-1000"></div>
+          <div className="relative min-h-[600px] w-full glass rounded-[50px] overflow-hidden flex items-center justify-center">
+            {image ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full relative">
+                <img src={image} alt="Generada" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-10">
+                  <a href={image} download className="bg-white text-black p-6 rounded-full hover:scale-110 transition-transform shadow-2xl">
+                    <Download size={40} />
                   </a>
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="placeholder"
-                  className="text-center p-10"
-                >
-                  <ImageIcon size={60} className="mx-auto mb-4 opacity-10" />
-                  <p className="text-white/30 font-medium">La IA está lista para pintar tus ideas</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="text-center">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="w-24 h-24 border-8 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin"></div>
+                    <p className="text-yellow-400 font-black text-3xl animate-pulse">ESTRUCTURANDO PÍXELES...</p>
+                  </div>
+                ) : (
+                  <div className="opacity-20 flex flex-col items-center gap-4">
+                    <ImageIcon size={120} />
+                    <p className="text-4xl font-black">EL LIENZO ESTÁ VACÍO</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
