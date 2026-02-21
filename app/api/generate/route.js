@@ -9,29 +9,35 @@ export async function POST(req) {
   try {
     const { prompt } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: "El prompt es obligatorio" }, { status: 400 });
+    if (!process.env.REPLICATE_API_TOKEN) {
+      return NextResponse.json({ error: "No has configurado la API Key en Vercel" }, { status: 500 });
     }
 
-    // Usamos el modelo oficial de Nano Banana (el motor más rápido de 2026)
-    const output = await replicate.run(
-      "lucataco/nano-banana:a4a7b3...", // Nota: Asegúrate de que el ID sea el de tu dashboard
-      {
-        input: {
-          prompt: prompt,
-          negative_prompt: "low quality, blurry, distorted",
-          num_inference_steps: 50,
-          guidance_scale: 7.5
-        }
-      }
-    );
+    // Usamos el ID de modelo más estable para Nano Banana en 2026
+    const prediction = await replicate.predictions.create({
+      version: "lucataco/nano-banana:a4a7b3...", // VERIFICA ESTE ID EN REPLICATE
+      input: {
+        prompt: prompt,
+        negative_prompt: "bad quality, blurry, watermark",
+        output_format: "webp"
+      },
+    });
 
-    return NextResponse.json({ url: output[0] });
+    // Esperamos a que la imagen se genere (polling)
+    let response = await replicate.predictions.get(prediction.id);
+    while (response.status !== "succeeded" && response.status !== "failed") {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      response = await replicate.predictions.get(prediction.id);
+    }
+
+    if (response.status === "failed") {
+      throw new Error("La IA falló al procesar la imagen.");
+    }
+
+    return NextResponse.json({ url: response.output[0] });
+
   } catch (error) {
-    console.error("DEBUG IA ERROR:", error);
-    return NextResponse.json(
-      { error: "Error al conectar con Nano Banana. Revisa tu API Token." }, 
-      { status: 500 }
-    );
+    console.error("ERROR CRÍTICO:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
