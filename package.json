@@ -1,19 +1,25 @@
 {
-  "name": "generador-nano-banana",
-  "version": "0.1.0",
+  "name": "nano-banana-generator",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
-    "next": "14.2.3",
-    "react": "^18",
-    "react-dom": "^18",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
     "replicate": "^0.30.0",
-    "lucide-react": "^0.378.0",
-    "framer-motion": "^11.1.7"
+    "lucide-react": "latest",
+    "framer-motion": "latest",
+    "clsx": "latest",
+    "tailwind-merge": "latest"
+  },
+  "devDependencies": {
+    "postcss": "latest",
+    "tailwindcss": "latest",
+    "autoprefixer": "latest"
   }
 }
