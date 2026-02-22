@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Download, Image as ImageIcon, Loader2, Zap, AlertTriangle } from 'lucide-react';
+import { Sparkles, Download, Image as ImageIcon, Loader2, Zap, Clock } from 'lucide-react';
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -23,11 +23,7 @@ export default function Home() {
       });
       
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error inesperado");
-      }
-      
+      if (!response.ok) throw new Error(data.error);
       setImage(data.url);
     } catch (err) {
       setError(err.message);
@@ -37,34 +33,24 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#020202] text-white selection:bg-yellow-400 p-4 md:p-10 font-sans overflow-x-hidden">
-      {/* Luces de ambiente */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-purple-600/10 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[150px] rounded-full" />
-      </div>
-
-      <main className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
-        {/* Header Monumental */}
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-16 mt-10">
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 border border-white/10 text-yellow-500 text-sm font-bold tracking-[0.3em] uppercase mb-8">
-            <Zap size={16} fill="currentColor" /> Free Open Source Engine
-          </div>
-          <h1 className="text-[14vw] md:text-[11rem] font-black leading-[0.75] tracking-tighter italic uppercase">
-            GIGA<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">GEN</span>
+    <div className="min-h-screen bg-[#050505] text-white p-6 md:p-12 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto flex flex-col items-center">
+        
+        {/* TITULO ULTRA GIGANTE */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mb-16">
+          <h1 className="text-[15vw] md:text-[13rem] font-black leading-[0.8] tracking-tighter uppercase italic">
+            GIGA<span className="text-yellow-500">FREE</span>
           </h1>
-          <p className="text-xl md:text-3xl text-neutral-500 font-light mt-6 max-w-3xl mx-auto">
-            Crea arte digital de alta resolución gratis y sin límites.
-          </p>
+          <p className="text-2xl text-neutral-500 font-bold mt-4 uppercase tracking-[0.5em]">High Precision Engine</p>
         </motion.div>
 
-        {/* Input Barra Gigante */}
-        <div className="w-full max-w-6xl mb-12">
-          <div className="bg-neutral-900/40 backdrop-blur-3xl border border-white/10 p-3 rounded-[45px] shadow-2xl flex flex-col md:flex-row gap-4 items-center">
+        {/* CONTENEDOR DE CONTROL */}
+        <div className="w-full max-w-6xl mb-12 space-y-6">
+          <div className="bg-neutral-900 border-4 border-white/5 p-4 rounded-[50px] flex flex-col md:flex-row gap-4 items-center shadow-[0_0_100px_rgba(0,0,0,1)]">
             <input
               type="text"
-              placeholder="Describe tu obra maestra (en inglés funciona mejor)..."
-              className="w-full bg-transparent px-10 py-8 text-2xl md:text-4xl outline-none border-none placeholder:text-neutral-700 font-bold"
+              placeholder="Describe una visión cinematográfica..."
+              className="w-full bg-transparent px-10 py-8 text-3xl md:text-5xl outline-none border-none placeholder:text-neutral-800 font-black italic uppercase"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && generateImage()}
@@ -72,54 +58,45 @@ export default function Home() {
             <button
               onClick={generateImage}
               disabled={loading}
-              className="w-full md:w-auto bg-yellow-400 hover:bg-white text-black text-3xl font-black px-16 py-8 rounded-[35px] flex items-center justify-center gap-4 transition-all active:scale-95 disabled:opacity-20 shadow-[0_0_50px_rgba(251,191,36,0.2)]"
+              className="w-full md:w-auto bg-white hover:bg-yellow-400 text-black px-16 py-10 rounded-[40px] text-4xl font-black transition-all active:scale-90 disabled:opacity-10"
             >
-              {loading ? <Loader2 className="animate-spin" size={40} /> : <Sparkles size={40} />}
-              {loading ? "GENERANDO" : "CREAR"}
+              {loading ? <Loader2 className="animate-spin" size={50} /> : <Zap size={50} fill="currentColor" />}
             </button>
           </div>
-          
+
           {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 flex items-center justify-center gap-3 text-yellow-500 bg-yellow-500/10 p-6 rounded-3xl border border-yellow-500/20">
-              <AlertTriangle size={24} />
-              <p className="text-xl font-bold uppercase tracking-tight">{error}</p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-yellow-500/10 border-2 border-yellow-500/30 p-8 rounded-[30px] flex items-center gap-6">
+              <Clock className="text-yellow-500" size={40} />
+              <p className="text-2xl font-bold text-yellow-500 uppercase">{error}</p>
             </motion.div>
           )}
         </div>
 
-        {/* Galería / Imagen GIGANTE */}
-        <div className="w-full max-w-6xl relative group">
-          <div className="absolute -inset-2 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-[60px] blur-3xl opacity-10 group-hover:opacity-20 transition duration-1000" />
-          <div className="relative aspect-square w-full bg-neutral-900/20 border border-white/5 rounded-[60px] overflow-hidden flex items-center justify-center shadow-inner">
-            <AnimatePresence mode="wait">
-              {image ? (
-                <motion.div key="img" initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} className="w-full h-full relative">
-                  <img src={image} alt="Generada" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <a href={image} download="imagen_ia.jpg" className="p-10 bg-white text-black rounded-full hover:scale-110 transition-transform shadow-2xl">
-                      <Download size={50} />
-                    </a>
+        {/* AREA DE IMAGEN MONUMENTAL */}
+        <div className="w-full max-w-6xl aspect-square bg-neutral-900/50 rounded-[80px] border-2 border-white/5 overflow-hidden flex items-center justify-center relative shadow-2xl">
+          <AnimatePresence mode="wait">
+            {image ? (
+              <motion.div key="img" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full relative">
+                <img src={image} alt="Generada" className="w-full h-full object-cover" />
+                <a href={image} download className="absolute bottom-12 right-12 p-10 bg-white text-black rounded-full hover:scale-110 transition-transform shadow-2xl">
+                  <Download size={40} />
+                </a>
+              </motion.div>
+            ) : (
+              <div className="flex flex-col items-center gap-12">
+                {loading ? (
+                  <div className="flex flex-col items-center gap-8">
+                    <div className="w-40 h-40 border-[16px] border-yellow-500/10 border-t-yellow-500 rounded-full animate-spin" />
+                    <h2 className="text-6xl font-black animate-pulse text-yellow-500">PENSANDO...</h2>
                   </div>
-                </motion.div>
-              ) : (
-                <div className="text-center opacity-10 p-10">
-                  {loading ? (
-                    <div className="flex flex-col items-center gap-10">
-                      <div className="w-32 h-32 border-8 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin" />
-                      <h2 className="text-5xl font-black italic animate-pulse">PINTANDO...</h2>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-6">
-                      <ImageIcon size={180} strokeWidth={0.5} />
-                      <p className="text-5xl font-black tracking-tighter uppercase italic">LIENZO VACÍO</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </AnimatePresence>
-          </div>
+                ) : (
+                  <ImageIcon size={200} className="opacity-5" />
+                )}
+              </div>
+            )}
+          </AnimatePresence>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
