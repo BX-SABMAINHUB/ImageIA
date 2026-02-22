@@ -1,43 +1,47 @@
 import { NextResponse } from 'next/server';
-import Replicate from "replicate";
-
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN, // Usará el r8_... que pongas en Vercel
-});
 
 export async function POST(req) {
   try {
     const { prompt } = await req.json();
 
     if (!prompt) {
-      return NextResponse.json({ error: "Escribe una descripción" }, { status: 400 });
+      return NextResponse.json({ error: "El campo está vacío" }, { status: 400 });
     }
 
-    // Usamos FLUX.1 [schnell] - El modelo más efectivo de 2026
-    const output = await replicate.run(
-      "black-forest-labs/flux-schnell",
+    // Usamos Stable Diffusion XL (SDXL) - El mejor modelo gratuito
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
       {
-        input: {
-          prompt: prompt,
-          num_inference_steps: 4,
-          aspect_ratio: "1:1",
-          output_format: "webp",
-          output_quality: 90
-        }
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({ inputs: prompt }),
       }
     );
 
-    if (!output || output.length === 0) {
-      throw new Error("La IA no ha podido generar la imagen.");
+    // Si Hugging Face está cargando el modelo (Error 503)
+    if (response.status === 503) {
+      const result = await response.json();
+      return NextResponse.json({ 
+        error: `La IA se está despertando... Reintenta en ${Math.round(result.estimated_time || 20)} segundos.` 
+      }, { status: 503 });
     }
 
-    // Devolvemos la URL (FLUX suele devolver un array de una posición)
-    return NextResponse.json({ url: output[0] });
+    if (!response.ok) {
+      throw new Error("Error en la conexión con Hugging Face");
+    }
+
+    // Convertimos la imagen recibida a Base64
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString('base64');
+    
+    return NextResponse.json({ url: `data:image/jpeg;base64,${base64Image}` });
 
   } catch (error) {
-    console.error("ERROR EN LA GENERACIÓN:", error.message);
-    return NextResponse.json({ 
-      error: "Error: " + error.message 
-    }, { status: 500 });
+    console.error("DEBUG:", error);
+    return NextResponse.json({ error: "Servidor saturado. Intenta de nuevo." }, { status: 500 });
   }
 }
