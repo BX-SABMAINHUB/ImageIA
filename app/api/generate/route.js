@@ -3,42 +3,50 @@ import { NextResponse } from 'next/server';
 export async function POST(req) {
   try {
     const { prompt } = await req.json();
-    const HF_TOKEN = process.env.HF_TOKEN;
+    if (!prompt) return NextResponse.json({ error: "Prompt vacío" }, { status: 400 });
 
-    // Usamos un modelo que suele estar siempre activo para evitar esperas
-    const MODEL_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1";
+    // Mejoramos el prompt internamente para asegurar calidad máxima
+    const enhancedPrompt = `${prompt}, 8k resolution, highly detailed, masterpiece, cinematic lighting, professional photography`;
 
-    const query = async (retryCount = 0) => {
-      const response = await fetch(MODEL_URL, {
-        headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
-        method: "POST",
-        body: JSON.stringify({ 
-          inputs: prompt,
-          parameters: { wait_for_model: true } 
-        }),
-      });
+    const queryIA = async (retries = 10) => {
+      for (let i = 0; i < retries; i++) {
+        const response = await fetch(
+          "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.HF_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ 
+              inputs: enhancedPrompt,
+              parameters: { wait_for_model: true, guidance_scale: 8.5 }
+            }),
+          }
+        );
 
-      if (response.status === 503 && retryCount < 10) {
-        // Si el modelo está cargando, esperamos 5 segundos y reintentamos automáticamente
-        const result = await response.json();
-        console.log(`Modelo cargando... reintento ${retryCount + 1}`);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return query(retryCount + 1);
+        if (response.ok) return response;
+
+        // Si el modelo está cargando (503), esperamos 5 segundos y reintentamos
+        if (response.status === 503) {
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          continue;
+        }
+
+        const errorMsg = await response.text();
+        throw new Error(errorMsg);
       }
-
-      if (!response.ok) throw new Error("Error en la respuesta de la IA");
-
-      return response;
+      throw new Error("Tiempo de espera agotado. La IA está muy solicitada.");
     };
 
-    const imageResponse = await query();
-    const arrayBuffer = await imageResponse.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Image = buffer.toString('base64');
+    const result = await queryIA();
+    const arrayBuffer = await result.arrayBuffer();
+    const base64Image = Buffer.from(arrayBuffer).toString('base64');
     
     return NextResponse.json({ url: `data:image/jpeg;base64,${base64Image}` });
 
   } catch (error) {
-    return NextResponse.json({ error: "La IA está tardando más de lo normal. Reintenta el botón una vez más." }, { status: 500 });
+    console.error("Critical Error:", error.message);
+    return NextResponse.json({ error: "La IA está procesando mucha información. Reintenta en 5 segundos." }, { status: 500 });
   }
 }
