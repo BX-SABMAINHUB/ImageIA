@@ -1,52 +1,87 @@
 import { NextResponse } from 'next/server';
 
+// Sistema de configuración avanzada para evitar desconexiones
+export const maxDuration = 60; // Aumenta el timeout en Vercel Pro/Hobby a 60s
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
   try {
     const { prompt } = await req.json();
-    if (!prompt) return NextResponse.json({ error: "Prompt vacío" }, { status: 400 });
 
-    // Mejoramos el prompt internamente para asegurar calidad máxima
-    const enhancedPrompt = `${prompt}, 8k resolution, highly detailed, masterpiece, cinematic lighting, professional photography`;
+    if (!prompt || prompt.length < 3) {
+      return NextResponse.json({ error: "El prompt es demasiado corto para procesar." }, { status: 400 });
+    }
 
-    const queryIA = async (retries = 10) => {
-      for (let i = 0; i < retries; i++) {
-        const response = await fetch(
-          "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
-          {
-            headers: {
-              Authorization: `Bearer ${process.env.HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            method: "POST",
-            body: JSON.stringify({ 
-              inputs: enhancedPrompt,
-              parameters: { wait_for_model: true, guidance_scale: 8.5 }
-            }),
-          }
-        );
+    // --- SISTEMA DE MEJORA DE PROMPT (Prompt Engineering Interno) ---
+    // Esto asegura que la IA gratuita siempre entregue algo de calidad profesional
+    const qualityBoosters = "masterpiece, 8k, highly detailed, professional lighting, cinematic, sharp focus, intricate textures, unreal engine 5 render, global illumination";
+    const finalPrompt = `${prompt}, ${qualityBoosters}`;
 
-        if (response.ok) return response;
-
-        // Si el modelo está cargando (503), esperamos 5 segundos y reintentamos
-        if (response.status === 503) {
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          continue;
+    // --- LÓGICA DE REINTENTO INDUSTRIAL ---
+    const callAIEngine = async (attempts = 0) => {
+      const maxAttempts = 12; // Intentará durante 60 segundos si es necesario
+      
+      const response = await fetch(
+        "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.HF_TOKEN}`,
+            "Content-Type": "application/json",
+            "x-use-cache": "false" // Forzamos generación nueva
+          },
+          method: "POST",
+          body: JSON.stringify({ 
+            inputs: finalPrompt,
+            parameters: {
+              wait_for_model: true,
+              negative_prompt: "blurry, distorted, low quality, bad anatomy, text, watermark, grainy",
+              guidance_scale: 9.0,
+              num_inference_steps: 40
+            }
+          }),
         }
+      );
 
-        const errorMsg = await response.text();
-        throw new Error(errorMsg);
+      // Caso 1: Éxito total
+      if (response.ok) return response;
+
+      // Caso 2: El modelo se está cargando (Error 503)
+      if (response.status === 503 && attempts < maxAttempts) {
+        console.log(`IA durmiendo. Reintento ${attempts + 1}...`);
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Espera 5 seg
+        return callAIEngine(attempts + 1);
       }
-      throw new Error("Tiempo de espera agotado. La IA está muy solicitada.");
+
+      // Caso 3: Error de cuota o saturación
+      const errorData = await response.text();
+      throw new Error(errorData);
     };
 
-    const result = await queryIA();
-    const arrayBuffer = await result.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString('base64');
+    const imageResult = await callAIEngine();
     
-    return NextResponse.json({ url: `data:image/jpeg;base64,${base64Image}` });
+    // --- PROCESAMIENTO DE BINARIOS A BASE64 ---
+    const arrayBuffer = await imageResult.arrayBuffer();
+    if (arrayBuffer.byteLength < 100) throw new Error("Imagen corrupta recibida.");
+    
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+    
+    return NextResponse.json({ 
+      url: `data:image/jpeg;base64,${base64}`,
+      stats: {
+        model: "SDXL-Base-1.0",
+        status: "success",
+        timestamp: new Date().toISOString()
+      }
+    });
 
   } catch (error) {
-    console.error("Critical Error:", error.message);
-    return NextResponse.json({ error: "La IA está procesando mucha información. Reintenta en 5 segundos." }, { status: 500 });
+    console.error("CRITICAL ENGINE FAILURE:", error.message);
+    
+    // Respuesta amigable pero técnica
+    return NextResponse.json({ 
+      error: "Sincronización fallida. La red neuronal está recalculando. Por favor, pulsa GENERAR de nuevo ahora.",
+      details: error.message 
+    }, { status: 500 });
   }
 }
